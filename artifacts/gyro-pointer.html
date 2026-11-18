@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Gyro Pointer</title>
+<style>
+  :root { --bg:#0b0f14; --fg:#cfe8ff; --accent:#4cc9f0; --yaw:#2f8fd8; --pitch:#35b34a; --roll:#d5dbe3; }
+  * { box-sizing: border-box; }
+  body { margin:0; height:100vh; background:var(--bg); color:var(--fg);
+         font-family: ui-monospace, Menlo, monospace; overflow:hidden; touch-action:none; }
+  #grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; padding:24px; padding-top:90px; }
+  .btn { padding:36px 12px; border:1px solid #234; border-radius:10px; background:#111a24;
+         color:var(--fg); font:inherit; text-align:center; transition:background .15s; }
+  .btn.hover { background:#17304a; border-color:var(--accent); }
+  .btn.fired { background:var(--accent); color:#000; }
+  #hud { position:fixed; top:8px; left:12px; right:12px; font-size:12px; opacity:.8; z-index:5; }
+  #hud button { font:inherit; margin-right:8px; padding:6px 10px; background:#111a24; color:var(--fg); border:1px solid #234; border-radius:6px; }
+  #cursor { position:fixed; width:28px; height:28px; margin:-14px 0 0 -14px; border-radius:50%;
+            border:2px solid var(--accent); pointer-events:none; z-index:10; }
+  #cursor::after { content:""; position:absolute; inset:-2px; border-radius:50%;
+                   background:conic-gradient(var(--accent) calc(var(--p,0)*1turn), transparent 0);
+                   -webkit-mask:radial-gradient(circle, transparent 10px, #000 11px); mask:radial-gradient(circle, transparent 10px, #000 11px); }
+  #log { position:fixed; bottom:10px; left:12px; font-size:12px; opacity:.8; }
+
+  /* ---------- gimbal ---------- */
+  #gimbalWrap { position:fixed; right:70px; bottom:60px; width:230px; height:230px; perspective:800px; z-index:2; }
+  #gimbalView { position:absolute; inset:0; transform-style:preserve-3d; transform:rotateX(-12deg) rotateY(-18deg); }
+  .ring { position:absolute; border-radius:50%; transform-style:preserve-3d; }
+  #ringYaw   { inset:0;    border:9px solid var(--yaw);   box-shadow:0 0 12px rgba(47,143,216,.35), inset 0 0 8px rgba(47,143,216,.3); }
+  #ringPitch { inset:11px; border:8px solid var(--pitch); box-shadow:0 0 10px rgba(53,179,74,.35), inset 0 0 6px rgba(53,179,74,.3); }
+  #ringRoll  { inset:10px; border:6px solid var(--roll);  box-shadow:0 0 8px rgba(213,219,227,.3); }
+  /* spokes make roll visible (a circle spinning in its own plane would look static) */
+  #ringRoll::before, #ringRoll::after { content:""; position:absolute; background:rgba(213,219,227,.55); }
+  #ringRoll::before { left:50%; top:0; bottom:0; width:2px; margin-left:-1px; }
+  #ringRoll::after  { top:50%; left:0; right:0; height:2px; margin-top:-1px; }
+  #core { position:absolute; left:50%; top:50%; width:22px; height:22px; margin:-11px 0 0 -11px; border-radius:50%;
+          background:radial-gradient(circle at 35% 35%, #fff, var(--accent)); box-shadow:0 0 12px var(--accent); }
+  /* 3x3 dot grid in the middle: one dot per button */
+  #dots { position:absolute; left:50%; top:50%; width:0; height:0; transform-style:preserve-3d; }
+  #ball { position:absolute; width:128px; height:128px; margin:-64px 0 0 -64px; border-radius:50%;
+          background:radial-gradient(circle at 35% 30%, rgba(120,200,255,.22), rgba(20,40,70,.12) 60%, rgba(0,0,0,0) 72%);
+          border:1px solid rgba(76,201,240,.35); pointer-events:none; }
+  .dot { position:absolute; left:0; top:0; width:20px; height:20px; margin:-10px 0 0 -10px; border-radius:50%;
+         background:radial-gradient(circle at 35% 35%, #fff, var(--accent)); color:#001018;
+         font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center;
+         box-shadow:0 0 8px var(--accent); transition:scale .15s, background .15s; }
+  .dot.hover { scale:1.35; background:#fff; }
+  .dot.fired { background:#ffd166; box-shadow:0 0 14px #ffd166; scale:1.5; }
+  /* needle: one flat blade in the green ring's plane, rooted on the ring's rim and pointing inward at the targeted dot */
+  #needle { position:absolute; left:50%; top:50%; height:5px; margin-top:-2.5px; width:0; transform-origin:0 50%;
+            transform-style:preserve-3d; pointer-events:none; display:none; }
+  #needle::before, #needle::after { content:""; position:absolute; inset:0; border-radius:3px;
+            background:linear-gradient(90deg, rgba(255,122,26,.35), #ff7a1a 70%, #ffd166); box-shadow:0 0 8px #ff7a1a; }
+  #needle::after { display:none; }   /* a single flat blade */
+  #mount { position:absolute; left:50%; top:50%; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%;
+           background:radial-gradient(circle at 35% 35%, #fff, #ff7a1a); box-shadow:0 0 10px #ff7a1a;
+           display:none; pointer-events:none; }
+  /* axle pins */
+  #ringYaw::before, #ringYaw::after { content:""; position:absolute; left:50%; width:8px; height:26px; margin-left:-4px; background:#8aa4bd; border-radius:3px; }
+  #ringYaw::before { top:-30px; } #ringYaw::after { bottom:-30px; }
+  #ringPitch::before, #ringPitch::after { content:""; position:absolute; top:50%; width:12px; height:12px; margin-top:-6px; background:var(--pitch); border-radius:50%; box-shadow:0 0 6px var(--pitch); }
+  #ringPitch::before { left:-14px; } #ringPitch::after { right:-14px; }
+
+  .tag { position:fixed; z-index:3; font-size:11px; padding:6px 9px; border:1px solid #234; border-radius:8px;
+         background:#111a24; color:var(--fg); transition:background .15s; }
+  .tag span { opacity:.75; margin-left:4px; }
+  .tag.hover { background:#17304a; border-color:var(--accent); }
+  .tag.fired { background:var(--accent); color:#000; }
+  #tagYaw   { right:150px; bottom:318px; border-color:var(--yaw); }
+  #tagPitch { right:316px; bottom:170px; border-color:var(--pitch); }
+  #tagRoll  { right:10px;  bottom:170px; border-color:var(--roll); }
+
+  #tune { display:inline-block; vertical-align:top; margin-left:8px; }
+  #tune summary { cursor:pointer; opacity:.8; }
+  #tune[open] { background:rgba(11,15,20,.92); border:1px solid #234; border-radius:8px; padding:6px 10px; }
+  #tune label { display:flex; align-items:center; gap:8px; margin-top:6px; }
+  #tune input { width:140px; }
+
+  /* Fitted into the cube's bottom-left dock */
+  html.embed body { height:100%; overflow:hidden; }
+  html.embed #grid { display:none; }
+  html.embed #log, html.embed #tune { display:none; }
+  html.embed #hud { top:4px; left:6px; right:6px; font-size:10px; }
+  html.embed #hud button { padding:3px 6px; margin-right:4px; }
+  html.embed #gimbalWrap {
+    right:auto; bottom:auto; left:50%; top:58%;
+    width:190px; height:190px;
+    transform:translate(-50%,-50%);
+  }
+  html.embed #tagYaw   { right:8px;  top:34px; bottom:auto; }
+  html.embed #tagPitch { left:6px; right:auto; bottom:8px; }
+  html.embed #tagRoll  { right:6px; bottom:8px; }
+  html.embed .tag { font-size:9px; padding:3px 5px; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <button id="start">Enable gyro</button>
+  <button id="recenter">Recenter</button>
+  <button id="mode">Mode: screen</button>
+  <span id="status">idle (mouse fallback active)</span>
+  <details id="tune">
+    <summary>tuning</summary>
+    <label>Sensitivity <input type="range" id="tRange" min="15" max="90" step="1"><span id="tRangeV"></span>&deg;</label>
+    <label>Responsiveness <input type="range" id="tSmooth" min="0.3" max="3" step="0.1"><span id="tSmoothV"></span></label>
+    <label>Dwell <input type="range" id="tDwell" min="400" max="1800" step="50"><span id="tDwellV"></span>ms</label>
+  </details>
+</div>
+
+<div id="grid">
+  <button class="btn">Alpha</button><button class="btn">Beta</button><button class="btn">Gamma</button>
+  <button class="btn">Delta</button><button class="btn">Epsilon</button><button class="btn">Zeta</button>
+  <button class="btn">Eta</button><button class="btn">Theta</button><button class="btn">Iota</button>
+</div>
+
+<!-- gimbal: yaw ring > pitch ring > roll ring, each rotates inside the previous -->
+<div id="gimbalWrap">
+  <div id="gimbalView">
+    <div class="ring" id="ringYaw">
+      <div class="ring" id="ringPitch">
+        <div id="mount"></div><div id="needle"></div>
+        <div class="ring" id="ringRoll"></div>
+      </div>
+    </div>
+    <!-- 9 dots spread over a sphere in the middle; JS places them in 3D -->
+    <div id="dots"><div id="ball"></div></div>
+  </div>
+</div>
+<div class="tag" id="tagYaw"   data-gaze data-name="YAW axis">YAW<span id="vYaw">0°</span></div>
+<div class="tag" id="tagPitch" data-gaze data-name="PITCH axis">PITCH<span id="vPitch">0°</span></div>
+<div class="tag" id="tagRoll"  data-gaze data-name="ROLL axis">ROLL<span id="vRoll">0°</span></div>
+
+<div id="cursor"></div>
+<div id="log">last click: none</div>
+
+<script>
+if (location.search.indexOf('embed=1') !== -1 || window.top !== window) document.documentElement.classList.add('embed');
+// ---------- tiny quaternion helpers (no libraries) ----------
+const D2R = Math.PI / 180;
+const qMul = (a, b) => ({
+  x: a.x*b.w + a.w*b.x + a.y*b.z - a.z*b.y,
+  y: a.y*b.w + a.w*b.y + a.z*b.x - a.x*b.z,
+  z: a.z*b.w + a.w*b.z + a.x*b.y - a.y*b.x,
+  w: a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z,
+});
+// Same math three.js DeviceOrientationControls uses (Euler YXZ -> quaternion)
+function orientationToQuat(alpha, beta, gamma, screenAngle) {
+  const x = beta * D2R, y = alpha * D2R, z = -gamma * D2R;
+  const c1=Math.cos(x/2), c2=Math.cos(y/2), c3=Math.cos(z/2);
+  const s1=Math.sin(x/2), s2=Math.sin(y/2), s3=Math.sin(z/2);
+  let q = {
+    x: s1*c2*c3 + c1*s2*s3,
+    y: c1*s2*c3 - s1*c2*s3,
+    z: c1*c2*s3 - s1*s2*c3,
+    w: c1*c2*c3 + s1*s2*s3,
+  };
+  q = qMul(q, { x:-Math.SQRT1_2, y:0, z:0, w:Math.SQRT1_2 });            // camera looks out the back of the phone
+  const a = -screenAngle * D2R / 2;
+  q = qMul(q, { x:0, y:0, z:Math.sin(a), w:Math.cos(a) });                // account for screen rotation
+  return q;
+}
+function rotateVec(q, v) {
+  const t = { x: 2*(q.y*v.z - q.z*v.y), y: 2*(q.z*v.x - q.x*v.z), z: 2*(q.x*v.y - q.y*v.x) };
+  return {
+    x: v.x + q.w*t.x + (q.y*t.z - q.z*t.y),
+    y: v.y + q.w*t.y + (q.z*t.x - q.x*t.z),
+    z: v.z + q.w*t.z + (q.x*t.y - q.y*t.x),
+  };
+}
+
+// ---------- pointer state ----------
+const cfg = {
+  hFov: 40, vFov: 30,      // degrees of phone motion that span the screen (smaller = more sensitive)
+  minCutoff: 1.0,          // One Euro filter: lower = steadier when still, higher = snappier
+  beta: 0.007,             // One Euro filter: how fast the smoothing relaxes when you move quickly
+  stick: 26,               // px of "magnetic" margin that keeps the current target while you hover near it
+  dwellMs: 900,            // hold time to click
+};
+
+// One Euro filter: heavy smoothing when the hand is still (kills jitter), light smoothing when moving fast (no lag)
+class LowPass { constructor() { this.y = null; } filter(x, a) { this.y = this.y === null ? x : a*x + (1-a)*this.y; return this.y; } }
+const lpAlpha = (cutoff, dt) => 1 / (1 + (1 / (2*Math.PI*cutoff)) / dt);
+class OneEuro {
+  constructor() { this.x = new LowPass(); this.dx = new LowPass(); this.last = null; }
+  filter(v, tSec, minCutoff, beta) {
+    if (this.last === null) { this.last = tSec; this.dx.y = 0; return this.x.filter(v, 1); }
+    const dt = Math.max(1e-3, tSec - this.last); this.last = tSec;
+    const speed = this.dx.filter((v - this.x.y) / dt, lpAlpha(1, dt));
+    return this.x.filter(v, lpAlpha(minCutoff + beta * Math.abs(speed), dt));
+  }
+}
+const fx = new OneEuro(), fy = new OneEuro();
+let yaw0 = null, pitch0 = null, yaw = 0, pitch = 0, roll = 0;
+let cur = { x: innerWidth/2, y: innerHeight/2 };
+let gyroLive = false;
+
+const $ = id => document.getElementById(id);
+const cursorEl = $('cursor'), statusEl = $('status'), logEl = $('log');
+
+function wrap(a) { while (a > Math.PI) a -= 2*Math.PI; while (a < -Math.PI) a += 2*Math.PI; return a; }
+
+// ---------- gimbal: three nested rotations ----------
+const ringYaw = $('ringYaw'), ringPitch = $('ringPitch'), ringRoll = $('ringRoll');
+const vYaw = $('vYaw'), vPitch = $('vPitch'), vRoll = $('vRoll');
+// 9 points spread evenly over a sphere (Fibonacci spiral), rotated by the same yaw/pitch/roll as the rings
+const dotEls = [];
+let lastAng = [25, 30, 0];
+const SPH_R = 56, GOLDEN = Math.PI * (3 - Math.sqrt(5));
+const basePts = Array.from({ length: 9 }, (_, i) => {
+  const y = 1 - 2 * (i + 0.5) / 9, r = Math.sqrt(1 - y*y), t = i * GOLDEN;
+  return { x: Math.cos(t) * r * SPH_R, y: y * SPH_R, z: Math.sin(t) * r * SPH_R };
+});
+function layoutDots(yw, pt, rl) {
+  const cy = Math.cos(yw*D2R), sy = Math.sin(yw*D2R);
+  const cx = Math.cos(pt*D2R), sx = Math.sin(pt*D2R);
+  const cz = Math.cos(rl*D2R), sz = Math.sin(rl*D2R);
+  dotEls.forEach((d, i) => {
+    const p = basePts[i];
+    const x1 = p.x*cz - p.y*sz, y1 = p.x*sz + p.y*cz, z1 = p.z;      // roll  (Z)
+    const y2 = y1*cx - z1*sx,   z2 = y1*sx + z1*cx,   x2 = x1;       // pitch (X)
+    const x3 = x2*cy + z2*sy,   z3 = -x2*sy + z2*cy,  y3 = y2;       // yaw   (Y)
+    // translate in 3D, then undo the view tilt so each dot faces the viewer
+    d.style.transform = `translate3d(${x3}px,${y3}px,${z3}px) rotateY(18deg) rotateX(12deg)`;
+    d.style.opacity = 0.45 + 0.55 * (z3 + SPH_R) / (2 * SPH_R);       // far side dimmer
+  });
+}
+function updateGimbal(yawDeg, pitchDeg, rollDeg) {
+  lastAng = [yawDeg, pitchDeg, rollDeg];
+  ringYaw.style.transform   = `rotateY(${yawDeg}deg)`;     // spins around the vertical axle
+  ringPitch.style.transform = `rotateX(${pitchDeg}deg)`;   // tilts around the horizontal pins
+  ringRoll.style.transform  = `rotateZ(${rollDeg}deg)`;    // spins in its own plane
+  vYaw.textContent = Math.round(yawDeg) + '°';
+  vPitch.textContent = Math.round(pitchDeg) + '°';
+  vRoll.textContent = Math.round(rollDeg) + '°';
+  // dots are intentionally NOT rotated with the gimbal (they stay put on the ball)
+}
+updateGimbal(25, 30, 0);   // visible 3D pose before any gyro data
+
+function onOrient(e) {
+  if (e.alpha == null) return;
+  gyroLive = true;
+  const q = orientationToQuat(e.alpha, e.beta, e.gamma, (screen.orientation && screen.orientation.angle) || 0);
+  const f = rotateVec(q, { x:0, y:0, z:-1 });          // where the phone points
+  const u = rotateVec(q, { x:0, y:1, z:0 });           // the phone's "up"
+  yaw = Math.atan2(f.x, -f.z);                          // + = looking right
+  pitch = Math.asin(Math.max(-1, Math.min(1, f.y)));    // + = looking up
+  roll = Math.atan2(u.x, u.y);                          // + = tilted clockwise
+  if (yaw0 === null) recenter();
+  updateGimbal(wrap(yaw - yaw0) / D2R, (pitch - pitch0) / D2R, roll / D2R);
+}
+function recenter() { yaw0 = yaw; pitch0 = pitch; }
+
+// ---------- gyro angles -> screen point ----------
+function aimToScreen(nowMs) {
+  const dYaw = wrap(yaw - yaw0) / D2R, dPitch = (pitch - pitch0) / D2R;
+  const tx = Math.max(0, Math.min(innerWidth,  innerWidth  * (0.5 + dYaw   / cfg.hFov)));
+  const ty = Math.max(0, Math.min(innerHeight, innerHeight * (0.5 - dPitch / cfg.vFov)));
+  cur.x = fx.filter(tx, nowMs / 1000, cfg.minCutoff, cfg.beta);   // adaptive smoothing (see One Euro above)
+  cur.y = fy.filter(ty, nowMs / 1000, cfg.minCutoff, cfg.beta);
+}
+
+// ---------- hit test + dwell click ----------
+let hovered = null, dwellStart = 0;
+function fireClick(el) {
+  el.classList.add('fired'); setTimeout(() => el.classList.remove('fired'), 180);
+  el.click();                                     // triggers normal click listeners
+  const d = btnDots.get(el);                      // mirror a button press onto its dot
+  if (d) { d.classList.add('fired'); setTimeout(() => d.classList.remove('fired'), 180); }
+  logEl.textContent = 'last click: ' + (el.dataset.name || el.textContent || el.id);
+}
+function hitTest(now) {
+  cursorEl.style.display = 'none';
+  const el = document.elementFromPoint(cur.x, cur.y);
+  cursorEl.style.display = '';
+  let target = el && el.closest('button, a, [data-gaze]');
+  // magnetic hold: if the cursor slips into a gap or just off the edge of the current target, keep it
+  // (so hand tremor doesn't reset the dwell timer); a different target under the cursor still wins
+  if (!target && hovered) {
+    const r = hovered.getBoundingClientRect(), s = cfg.stick;
+    if (cur.x >= r.left - s && cur.x <= r.right + s && cur.y >= r.top - s && cur.y <= r.bottom + s) target = hovered;
+  }
+  // space mode: ignore the screen position and pick the dot the phone is pointing at on the sphere,
+  // then park the cursor ring on that dot so the dwell progress shows there
+  if (spaceMode) {
+    target = pickDotInSpace();
+    const r = target.getBoundingClientRect();
+    cursorEl.style.left = (r.left + r.width / 2) + 'px';
+    cursorEl.style.top  = (r.top + r.height / 2) + 'px';
+  }
+  if (target !== hovered) {
+    if (hovered) hovered.classList.remove('hover');
+    hovered = target; dwellStart = now;
+    if (hovered) { hovered.classList.add('hover'); aimNeedleAt(hovered); }
+  }
+  let p = 0;
+  if (hovered && !['start', 'recenter', 'mode'].includes(hovered.id)) {
+    p = Math.min(1, (now - dwellStart) / cfg.dwellMs);
+    if (p >= 1) { fireClick(hovered); dwellStart = now + 600; }   // cooldown before re-fire
+  }
+  cursorEl.style.setProperty('--p', Math.max(0, p));
+}
+
+function loop(now) {
+  if (gyroLive && yaw0 !== null) aimToScreen(now);
+  updateNeedle();
+  cursorEl.style.left = cur.x + 'px'; cursorEl.style.top = cur.y + 'px';
+  hitTest(now);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ---------- permissions / wiring ----------
+$('start').addEventListener('click', async () => {
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const r = await DeviceOrientationEvent.requestPermission();   // iOS: must come from a user gesture
+      if (r !== 'granted') { statusEl.textContent = 'permission denied'; return; }
+    }
+    window.addEventListener('deviceorientation', onOrient);
+    statusEl.textContent = 'gyro on - aim and hold to click';
+    setTimeout(() => { if (!gyroLive) statusEl.textContent = 'no gyro data (needs a phone + HTTPS)'; }, 1500);
+  } catch (err) { statusEl.textContent = 'error: ' + err.message; }
+});
+$('recenter').addEventListener('click', recenter);
+
+// ---------- tuning panel (remembered in this browser) ----------
+try { Object.assign(cfg, JSON.parse(localStorage.getItem('gyroTune') || '{}')); } catch (e) {}
+cfg.vFov = cfg.hFov * 0.75;
+[['tRange', 'hFov'], ['tSmooth', 'minCutoff'], ['tDwell', 'dwellMs']].forEach(([id, key]) => {
+  const input = $(id), out = $(id + 'V');
+  input.value = cfg[key]; out.textContent = cfg[key];
+  input.addEventListener('input', () => {
+    cfg[key] = +input.value; out.textContent = input.value;
+    if (key === 'hFov') cfg.vFov = cfg.hFov * 0.75;
+    try { localStorage.setItem('gyroTune', JSON.stringify({ hFov: cfg.hFov, minCutoff: cfg.minCutoff, dwellMs: cfg.dwellMs })); } catch (e) {}
+  });
+});
+
+// Desktop fallback: mouse = yaw/pitch, wheel = roll
+let fbRoll = 0;
+addEventListener('mousemove', e => {
+  mouse.x = e.clientX; mouse.y = e.clientY;
+  if (gyroLive) return;
+  cur.x = e.clientX; cur.y = e.clientY;
+  updateGimbal((e.clientX / innerWidth - 0.5) * 360, -(e.clientY / innerHeight - 0.5) * 160, fbRoll);
+});
+addEventListener('wheel', e => {
+  if (gyroLive) return;
+  fbRoll += e.deltaY * 0.2;
+  updateGimbal((cur.x / innerWidth - 0.5) * 360, -(cur.y / innerHeight - 0.5) * 160, fbRoll);
+}, { passive: true });
+// Tap anywhere = instant click at the aimed point (alternative to dwell)
+addEventListener('touchstart', e => {
+  if (!gyroLive || e.target.closest('#hud')) return;
+  if (hovered) fireClick(hovered);
+}, { passive: true });
+
+// ---------- 9 dots in the middle of the gimbal, one per button (same 3x3 order) ----------
+const btnDots = new Map();
+const dotsEl = $('dots');
+document.querySelectorAll('.btn').forEach((b, i) => {
+  b.addEventListener('click', () => console.log('clicked', b.textContent));
+  const d = document.createElement('div');
+  d.className = 'dot';
+  d.textContent = i + 1;
+  d.title = b.textContent;
+  d.dataset.gaze = '';
+  d.dataset.name = b.textContent;
+  d.addEventListener('click', () => {
+    if (!d.matches('.fired')) { d.classList.add('fired'); setTimeout(() => d.classList.remove('fired'), 180); }
+    b.classList.add('fired'); setTimeout(() => b.classList.remove('fired'), 180);
+    b.click();                                    // the dot presses its button
+  });
+  dotsEl.appendChild(d);
+  btnDots.set(b, d);
+  dotEls.push(d);
+});
+layoutDots(0, 0, 0);   // place the dots once, fixed on the sphere
+
+// The needle is a single flat blade lying in the green ring's plane, like a clock hand on a dial. It is mounted on
+// the green ring, so it tilts and turns with yaw and pitch (not with the silver roll ring). The dots stay fixed, so
+// each frame the dot's position is converted into the green ring's own frame, then flattened onto that plane.
+const needleEl = $('needle'), mountEl = $('mount');
+const RIM = 91;   // radius of the green ring's stroke, where the bead and blade root sit
+let needleTarget = -1;
+const needleVec = { x: 0, y: 0, z: 0 };
+function aimNeedleAt(el) {
+  if (!el) return;
+  const dot = el.classList.contains('dot') ? el : btnDots.get(el);
+  const i = dotEls.indexOf(dot);
+  if (i < 0) return;
+  if (needleTarget < 0) Object.assign(needleVec, basePts[i]);
+  needleTarget = i;
+  needleEl.style.display = 'block';
+  mountEl.style.display = 'block';
+}
+function updateNeedle() {
+  if (needleTarget < 0) return;
+  const t = basePts[needleTarget];
+  needleVec.x += (t.x - needleVec.x) * 0.2;      // swing smoothly between targets
+  needleVec.y += (t.y - needleVec.y) * 0.2;
+  needleVec.z += (t.z - needleVec.z) * 0.2;
+  const [yw, pt, rl] = lastAng;
+  const cy = Math.cos(-yw*D2R), sy = Math.sin(-yw*D2R);
+  const cx = Math.cos(-pt*D2R), sx = Math.sin(-pt*D2R);
+  let { x, y, z } = needleVec;
+  let nx = x*cy + z*sy, nz = -x*sy + z*cy; x = nx; z = nz;       // undo yaw
+  let ny = y*cx - z*sx; nz = y*sx + z*cx; y = ny; z = nz;         // undo pitch (roll is not undone: the needle is on the green ring)
+  // flat clock hand in the green ring's plane: only the dot's shadow on that plane matters, so z is dropped
+  const psi = Math.atan2(y, x);                          // direction of the dot's shadow
+  const reach = Math.hypot(x, y);                        // how far from the center the shadow falls
+  const mx = RIM * Math.cos(psi), my = RIM * Math.sin(psi);   // bead on the rim, on the side facing the dot
+  mountEl.style.transform = `translate3d(${mx}px,${my}px,2px)`;
+  needleEl.style.width = Math.max(0, RIM - reach) + 'px';     // blade runs from the rim inward to the shadow
+  needleEl.style.transform = `translate3d(${mx}px,${my}px,2px) rotateZ(${psi + Math.PI}rad)`;
+}
+
+// ---------- space mode: select a point in space, not a point on the screen ----------
+// The nine dots sit on a sphere around you. Your phone's heading (yaw/pitch from the recenter point) becomes a
+// direction on that sphere, and the dot closest in angle to it is selected. Turning the phone by half of the
+// Sensitivity range sweeps 90 degrees around the sphere, so every dot (even the far side) is reachable.
+let spaceMode = false, spaceDot = -1;
+const mouse = { x: innerWidth / 2, y: innerHeight / 2 };
+function aimAngles() {
+  if (gyroLive && yaw0 !== null) return [wrap(yaw - yaw0) / D2R, (pitch - pitch0) / D2R];
+  return [(mouse.x / innerWidth - 0.5) * cfg.hFov, -(mouse.y / innerHeight - 0.5) * cfg.vFov];   // desktop testing
+}
+function pickDotInSpace() {
+  const [dYaw, dPitch] = aimAngles(), g = 180 / cfg.hFov;
+  const lam = dYaw * g * D2R, phi = Math.max(-90, Math.min(90, dPitch * g)) * D2R;
+  const a = { x: Math.sin(lam) * Math.cos(phi), y: -Math.sin(phi), z: Math.cos(lam) * Math.cos(phi) };   // CSS axes: x right, y down, z toward you
+  let best = -1, bestScore = -2, curScore = -2;
+  basePts.forEach((p, i) => {
+    const s = (a.x * p.x + a.y * p.y + a.z * p.z) / SPH_R;                                              // cosine of the angle between aim and dot
+    if (s > bestScore) { bestScore = s; best = i; }
+    if (i === spaceDot) curScore = s;
+  });
+  if (spaceDot < 0 || bestScore > curScore + 0.04) spaceDot = best;   // hysteresis: a rival must be clearly closer to steal the selection
+  return dotEls[spaceDot];
+}
+$('mode').addEventListener('click', () => {
+  spaceMode = !spaceMode; spaceDot = -1;
+  $('mode').textContent = 'Mode: ' + (spaceMode ? 'space' : 'screen');
+  if (hovered) { hovered.classList.remove('hover'); hovered = null; }
+});
+</script>
+</body>
+</html>

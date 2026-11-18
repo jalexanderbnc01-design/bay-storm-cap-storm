@@ -1,0 +1,1979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Dimensional Systems Thinking Dashboard</title>
+  <style>
+    /* ==========================================================================
+       DESIGN TOKENS — INDUSTRIAL DARK GRAPHITE PALETTE
+       ========================================================================== */
+    :root {
+      --bg-base: #17191C;
+      --bg-panel: #222427;
+      --bg-card: #292C30;
+      --bg-card-hover: #30343A;
+      --border: #363A40;
+      --border-strong: #4A5058;
+
+      --text-primary: #F0F2F5;
+      --text-muted: #9BA1A6;
+      --text-dim: #6E757D;
+
+      --cyan: #00D8FF;
+      --cyan-dim: rgba(0, 216, 255, 0.12);
+      --cyan-border: rgba(0, 216, 255, 0.38);
+
+      --emerald: #34D399;
+      --emerald-dim: rgba(52, 211, 153, 0.14);
+      --emerald-border: rgba(52, 211, 153, 0.4);
+
+      --amber: #FBBF24;
+      --amber-dim: rgba(251, 191, 36, 0.14);
+      --amber-border: rgba(251, 191, 36, 0.42);
+
+      --rose: #FB7185;
+      --rose-dim: rgba(251, 113, 133, 0.14);
+      --rose-border: rgba(251, 113, 133, 0.42);
+
+      --purple: #A78BFA;
+      --purple-dim: rgba(167, 139, 250, 0.14);
+      --purple-border: rgba(167, 139, 250, 0.42);
+
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+      --radius-lg: 12px;
+      --radius-md: 8px;
+      --radius-sm: 5px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app-shell {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 18px 20px 44px;
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+    }
+
+    /* ==========================================================================
+       6-TAB NAVIGATION BAR (STARTS DIRECTLY AT TOP — NO HEADER BANNER)
+       ========================================================================== */
+    .tab-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 6px;
+      margin-bottom: 18px;
+    }
+
+    .tab-btn {
+      flex: 1 1 auto;
+      min-width: 140px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.16s ease;
+      white-space: nowrap;
+    }
+
+    .tab-btn svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-card);
+    }
+
+    .tab-btn.active {
+      background-color: var(--cyan);
+      color: #0B1014;
+      box-shadow: 0 2px 10px rgba(0, 216, 255, 0.25);
+    }
+
+    .tab-panel {
+      display: none;
+      animation: panelFade 0.18s ease;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    @keyframes panelFade {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ==========================================================================
+       SHARED SURFACES, CARDS & BADGES
+       ========================================================================== */
+    .panel {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+    }
+
+    .sec-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sec-sub {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .b-cyan    { background: var(--cyan-dim); color: var(--cyan); border: 1px solid var(--cyan-border); }
+    .b-emerald { background: var(--emerald-dim); color: var(--emerald); border: 1px solid var(--emerald-border); }
+    .b-amber   { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber-border); }
+    .b-rose    { background: var(--rose-dim); color: var(--rose); border: 1px solid var(--rose-border); }
+    .b-purple  { background: var(--purple-dim); color: var(--purple); border: 1px solid var(--purple-border); }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+
+    /* ==========================================================================
+       TAB 5: PROPOSED DECISION INPUT FORM & PRESETS
+       ========================================================================== */
+    .decision-header-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .preset-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .preset-btn {
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background-color: var(--bg-card);
+      color: var(--text-primary);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preset-btn:hover {
+      background-color: var(--bg-card-hover);
+      border-color: var(--cyan);
+    }
+
+    .preset-btn.active-preset {
+      border-color: var(--cyan);
+      background-color: var(--cyan-dim);
+      color: var(--cyan);
+    }
+
+    .decision-form-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1.5fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .decision-form-grid-sub {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 960px) {
+      .decision-form-grid,
+      .decision-form-grid-sub {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field-box {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field-box label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .field-box input,
+    .field-box select {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      padding: 8px 10px;
+      font-size: 0.84rem;
+      font-family: var(--font-sans);
+      transition: border-color 0.15s ease;
+    }
+
+    .field-box input:focus,
+    .field-box select:focus {
+      outline: none;
+      border-color: var(--cyan);
+    }
+
+    /* ==========================================================================
+       TAB 5: AUDIT CONTROLS BAR
+       ========================================================================== */
+    .audit-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 16px;
+    }
+
+    .ctrl-btn {
+      padding: 8px 13px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background-color: var(--bg-panel);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .ctrl-btn:hover {
+      border-color: var(--cyan);
+      background-color: var(--bg-card-hover);
+    }
+
+    .ctrl-btn.primary {
+      background-color: var(--cyan);
+      color: #0A1014;
+      border-color: var(--cyan);
+      font-weight: 700;
+    }
+
+    .ctrl-btn.primary:hover {
+      filter: brightness(1.08);
+    }
+
+    .ctrl-btn.warn:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    .ctrl-btn.danger:hover {
+      border-color: var(--rose);
+      color: var(--rose);
+    }
+
+    .ctrl-btn.repair:hover {
+      border-color: var(--emerald);
+      color: var(--emerald);
+    }
+
+    .audit-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mode-badge {
+      padding: 4px 11px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--cyan-border);
+      background-color: var(--cyan-dim);
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .mode-badge.halt {
+      border-color: var(--rose-border);
+      background-color: var(--rose-dim);
+      color: var(--rose);
+    }
+
+    .mode-badge.done {
+      border-color: var(--emerald-border);
+      background-color: var(--emerald-dim);
+      color: var(--emerald);
+    }
+
+    .speed-select {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+    }
+
+    /* ==========================================================================
+       TAB 5: MAIN SPLIT BOARD (12x7 MATRIX LEFT + 8 CHECK BITS SIDEBAR RIGHT)
+       ========================================================================== */
+    .ecc-board {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 230px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+      .ecc-board {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .matrix-wrap {
+      overflow-x: auto;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px;
+    }
+
+    .matrix-grid {
+      min-width: 720px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .matrix-col-headers {
+      display: grid;
+      grid-template-columns: 165px repeat(7, minmax(64px, 1fr));
+      gap: 5px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2px;
+    }
+
+    .col-hdr {
+      text-align: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 5px 4px;
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      line-height: 1.25;
+    }
+
+    .col-hdr.pos  { color: var(--emerald); border-top: 2px solid var(--emerald); }
+    .col-hdr.zero { color: var(--amber); border-top: 2px solid var(--amber); }
+    .col-hdr.neg  { color: var(--rose); border-top: 2px solid var(--rose); }
+
+    .dim-row {
+      display: grid;
+      grid-template-columns: 165px repeat(7, minmax(64px, 1fr));
+      gap: 5px;
+      align-items: center;
+      padding: 3px 4px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      transition: all 0.14s ease;
+    }
+
+    .dim-row.rowcur {
+      border-color: var(--cyan);
+      background-color: rgba(0, 216, 255, 0.06);
+      box-shadow: 0 0 10px rgba(0, 216, 255, 0.16);
+    }
+
+    .dim-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding-right: 6px;
+      font-size: 0.78rem;
+    }
+
+    .dim-id {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--cyan);
+      font-size: 0.74rem;
+    }
+
+    .dim-row.rowcur .dim-id {
+      color: var(--amber);
+    }
+
+    .dim-name {
+      color: var(--text-primary);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .m-cell {
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background-color: var(--bg-panel);
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .m-cell:hover {
+      border-color: var(--cyan);
+      color: var(--text-primary);
+    }
+
+    /* Active polarity bit (1) */
+    .m-cell.on.pos  { background-color: rgba(52, 211, 153, 0.16); border-color: var(--emerald-border); color: var(--emerald); }
+    .m-cell.on.zero { background-color: rgba(251, 191, 36, 0.16); border-color: var(--amber-border); color: var(--amber); }
+    .m-cell.on.neg  { background-color: rgba(251, 113, 133, 0.16); border-color: var(--rose-border); color: var(--rose); }
+
+    /* Watched by selected Check Bit C0..C7 */
+    .m-cell.watch {
+      background-color: rgba(0, 216, 255, 0.14) !important;
+      border-color: var(--cyan) !important;
+      color: var(--cyan) !important;
+    }
+
+    /* Live scanning head & 2-step trail */
+    .m-cell.cur {
+      background-color: var(--cyan) !important;
+      color: #091014 !important;
+      border-color: var(--cyan) !important;
+      box-shadow: 0 0 12px rgba(0, 216, 255, 0.75);
+      transform: scale(1.06);
+      z-index: 2;
+    }
+
+    .m-cell.t1 {
+      background-color: rgba(0, 216, 255, 0.35) !important;
+      border-color: var(--cyan) !important;
+      color: var(--text-primary) !important;
+    }
+
+    .m-cell.t2 {
+      background-color: rgba(0, 216, 255, 0.18) !important;
+      border-color: var(--cyan-border) !important;
+    }
+
+    /* Single Conflict (X) vs Systemic Distortion (%) vs Repaired (FIX) */
+    .m-cell.bad-x {
+      background-color: var(--amber-dim) !important;
+      border-color: var(--amber) !important;
+      color: var(--amber) !important;
+      box-shadow: 0 0 8px rgba(251, 191, 36, 0.35);
+    }
+
+    .m-cell.bad-pct {
+      background-color: var(--rose-dim) !important;
+      border-color: var(--rose) !important;
+      color: var(--rose) !important;
+      box-shadow: 0 0 8px rgba(251, 113, 133, 0.35);
+    }
+
+    .m-cell.fix {
+      background-color: var(--emerald-dim) !important;
+      border-color: var(--emerald) !important;
+      color: var(--emerald) !important;
+      box-shadow: 0 0 10px rgba(52, 211, 153, 0.45);
+    }
+
+    /* ==========================================================================
+       RIGHT SIDEBAR: 8 CHECK BITS PANEL (C0 .. C7)
+       ========================================================================== */
+    .chk-sidebar {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .chk-header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      margin-bottom: 2px;
+    }
+
+    .chk-title {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: 0.04em;
+    }
+
+    .chk-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .chk-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background-color: var(--bg-panel);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.14s ease;
+    }
+
+    .chk-btn:hover {
+      border-color: var(--cyan);
+    }
+
+    .chk-btn.sel {
+      border-color: var(--cyan);
+      background-color: var(--cyan-dim);
+      box-shadow: 0 0 0 1px var(--cyan);
+    }
+
+    .chk-btn.bad {
+      border-color: var(--rose);
+      background-color: var(--rose-dim);
+    }
+
+    .chk-btn.fix {
+      border-color: var(--emerald);
+      background-color: var(--emerald-dim);
+    }
+
+    .chk-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chk-weight {
+      color: var(--text-muted);
+      font-size: 0.72rem;
+    }
+
+    .cv-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-weight: 700;
+      font-size: 0.76rem;
+    }
+
+    .cv-pill:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    .cv-pill.mismatch {
+      background-color: var(--rose-dim);
+      border-color: var(--rose);
+      color: var(--rose);
+    }
+
+    /* ==========================================================================
+       DIAGNOSTIC STATUS BANNER & 4 METRIC CARDS
+       ========================================================================== */
+    .diag-banner {
+      margin-top: 16px;
+      padding: 14px 16px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--cyan);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    }
+
+    .diag-banner.ok   { border-left-color: var(--emerald); }
+    .diag-banner.warn { border-left-color: var(--amber); }
+    .diag-banner.err  { border-left-color: var(--rose); }
+
+    .diag-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .diag-headline {
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+
+    .diag-syndrome {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      color: var(--cyan);
+    }
+
+    .diag-desc {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+    }
+
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .metric-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+    }
+
+    .metric-card small {
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .metric-card b {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 1.15rem;
+      color: var(--text-primary);
+    }
+
+    .seg-bar {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 3px;
+      margin-top: 8px;
+    }
+
+    .seg-bar i {
+      height: 8px;
+      border-radius: 2px;
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      transition: background-color 0.15s ease;
+    }
+
+    .seg-bar i.lit {
+      background-color: var(--cyan);
+      border-color: var(--cyan);
+    }
+
+    /* ==========================================================================
+       OTHER TABS (1, 2, 3, 4, 6) STYLING
+       ========================================================================== */
+    .loop-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin: 12px 0;
+    }
+
+    .loop-node {
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-strong);
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .trait-ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .trait-ul li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 10px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .trait-ul li strong {
+      color: var(--text-primary);
+    }
+
+    .num-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background-color: var(--cyan-dim);
+      color: var(--cyan);
+      font-size: 0.74rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .pol-axis-node {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 14px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      color: var(--text-primary);
+      margin-bottom: 7px;
+    }
+
+    .pol-axis-node.selected {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 1px var(--cyan);
+    }
+
+    .flow-card {
+      padding: 12px 16px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      transition: all 0.16s ease;
+    }
+
+    .flow-card.dimmed { opacity: 0.38; }
+    .flow-card.target { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- ======================================================================
+         6-TAB NAVIGATION BAR (NO TOP HEADER BANNER)
+         ====================================================================== -->
+    <nav class="tab-nav" role="tablist" aria-label="Systems Thinking Dashboard Navigation">
+      <button class="tab-btn" data-tab="overview" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M12 3v9l6 3.5"></path>
+        </svg>
+        Overview
+      </button>
+
+      <button class="tab-btn" data-tab="modes" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>
+        3 Thinking Modes
+      </button>
+
+      <button class="tab-btn" data-tab="polarity" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="3" x2="12" y2="21"></line>
+          <polyline points="8 7 12 3 16 7"></polyline>
+          <polyline points="8 17 12 21 16 17"></polyline>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Polarity System
+      </button>
+
+      <button class="tab-btn" data-tab="dimensions" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+        </svg>
+        12 Dimensions
+      </button>
+
+      <button class="tab-btn active" data-tab="matrix" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+          <line x1="3" y1="9" x2="21" y2="9"></line>
+          <line x1="3" y1="15" x2="21" y2="15"></line>
+          <line x1="9" y1="3" x2="9" y2="21"></line>
+          <line x1="15" y1="3" x2="15" y2="21"></line>
+        </svg>
+        Dimension × Polarity Matrix
+      </button>
+
+      <button class="tab-btn" data-tab="workflow" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        Workflow &amp; Loop
+      </button>
+    </nav>
+
+    <!-- ======================================================================
+         TAB 1: OVERVIEW
+         ====================================================================== -->
+    <section id="tab-overview" class="tab-panel" role="tabpanel">
+      <div class="grid-2">
+        <div class="panel">
+          <span class="badge b-cyan" style="margin-bottom:10px;">COGNITIVE ARCHITECTURE</span>
+          <h2 class="sec-title" style="font-size:1.3rem;">Multi-Dimensional, Recursive Systems Thinking</h2>
+          <p style="font-size:0.88rem; color:var(--text-muted); margin-top:8px;">
+            You explore what a problem connects to, what it could become, how its components interact, and how it fits into a larger system—moving fluidly across the primary polarity axis (<strong>− ↔ 0 ↔ +</strong>) while monitoring <strong>X</strong> (Conflict) and <strong>%</strong> (Distortion) control signals.
+          </p>
+
+          <div class="loop-strip">
+            <span class="loop-node">THINK</span>
+            <span style="color:var(--text-muted);">→</span>
+            <span class="loop-node">DECIDE</span>
+            <span style="color:var(--text-muted);">→</span>
+            <span class="loop-node">ACT</span>
+            <span style="color:var(--text-muted);">→</span>
+            <span class="loop-node">OBSERVE</span>
+            <span style="color:var(--text-muted);">→</span>
+            <span class="loop-node">THINK</span>
+          </div>
+
+          <div class="card" style="margin-top:14px; border-left:3px solid var(--amber);">
+            <div style="font-size:0.84rem; font-weight:700; color:var(--amber); margin-bottom:4px;">Stopping Mechanism Watchpoint</div>
+            <p style="font-size:0.82rem; color:var(--text-muted);">
+              Expansion (<strong>+</strong>) can continue long after a problem has enough information to be solved. Your <strong>0 Equilibrium Observation</strong> and parity checks act as essential stopping rules.
+            </p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 class="sec-title">7 Defining Characteristics</h3>
+          <p class="sec-sub">Core behavioral traits of your problem-solving approach.</p>
+          <ul class="trait-ul">
+            <li><span class="num-dot">1</span><div><strong>Expansive:</strong> Explores beyond the immediate problem boundary.</div></li>
+            <li><span class="num-dot">2</span><div><strong>Analytical:</strong> Breaks complex structures into smaller components.</div></li>
+            <li><span class="num-dot">3</span><div><strong>Associative:</strong> Connects ideas across separate domains.</div></li>
+            <li><span class="num-dot">4</span><div><strong>Recursive:</strong> Revisits previous decisions and refines them.</div></li>
+            <li><span class="num-dot">5</span><div><strong>Integrative:</strong> Links compatible systems and prevents duplicate work.</div></li>
+            <li><span class="num-dot">6</span><div><strong>Future-oriented:</strong> Evaluates what today's choices unlock tomorrow.</div></li>
+            <li><span class="num-dot">7</span><div><strong>Observational:</strong> Seeks systemic understanding before intervening.</div></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         TAB 2: 3 THINKING MODES
+         ====================================================================== -->
+    <section id="tab-modes" class="tab-panel" role="tabpanel">
+      <div class="panel">
+        <h2 class="sec-title">Primary Cognitive Modes</h2>
+        <p class="sec-sub">Three operational modes along your primary polarity axis.</p>
+        <div class="grid-3">
+          <div class="card" style="border-top:3px solid var(--emerald);">
+            <span class="badge b-emerald" style="margin-bottom:8px;">+ EXPANSION</span>
+            <h3 style="font-size:1.08rem; font-weight:700;">Dynamic Thinking — Expand</h3>
+            <p style="font-size:0.83rem; color:var(--text-muted); margin:6px 0 12px;"><em>"What else could this become?"</em></p>
+            <p style="font-size:0.84rem; color:var(--text-primary);">
+              Imagine possibilities, connect unrelated concepts, explore alternative realities, expand existing ideas, identify future opportunities, and think beyond current limitations.
+            </p>
+          </div>
+
+          <div class="card" style="border-top:3px solid var(--amber);">
+            <span class="badge b-amber" style="margin-bottom:8px;">0 EQUILIBRIUM</span>
+            <h3 style="font-size:1.08rem; font-weight:700;">Normal Thinking — Observe</h3>
+            <p style="font-size:0.83rem; color:var(--text-muted); margin:6px 0 12px;"><em>"What is actually happening?"</em></p>
+            <p style="font-size:0.84rem; color:var(--text-primary);">
+              Investigate root causes, separate facts from assumptions, understand dependencies, evaluate hard constraints, and establish what needs to happen.
+            </p>
+          </div>
+
+          <div class="card" style="border-top:3px solid var(--rose);">
+            <span class="badge b-rose" style="margin-bottom:8px;">− / + INTEGRATION</span>
+            <h3 style="font-size:1.08rem; font-weight:700;">Complementary — Analyze &amp; Refine</h3>
+            <p style="font-size:0.83rem; color:var(--text-muted); margin:6px 0 12px;"><em>"What needs to change or connect?"</em></p>
+            <p style="font-size:0.84rem; color:var(--text-primary);">
+              Identify weaknesses, remove unnecessary components, find missing connections, improve existing structures, integrate compatible systems, and prevent duplicated work.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         TAB 3: POLARITY SYSTEM
+         ====================================================================== -->
+    <section id="tab-polarity" class="tab-panel" role="tabpanel">
+      <div class="panel">
+        <h2 class="sec-title">Primary Polarity Axis (− ↔ 0 ↔ +) &amp; Orthogonal Control Layer</h2>
+        <p class="sec-sub">
+          <strong>+</strong> and <strong>−</strong> describe direction (Expansion vs. Contraction), <strong>0</strong> describes Equilibrium, and <strong>X / %</strong> are independent control indicators that can overlay any point on the axis.
+        </p>
+
+        <div class="grid-2">
+          <div>
+            <div style="font-size:0.75rem; font-weight:700; color:var(--emerald); margin-bottom:8px;">▲ EXPANSION (+)</div>
+            <div id="pol-axis-container"></div>
+            <div style="font-size:0.75rem; font-weight:700; color:var(--rose); margin-top:4px;">▼ CONTRACTION (−)</div>
+          </div>
+
+          <div>
+            <div class="card" style="margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span class="badge b-amber">X = CONFLICT</span>
+                <label style="font-size:0.8rem; cursor:pointer;">
+                  <input type="checkbox" id="pol-overlay-x" /> Overlay X
+                </label>
+              </div>
+              <p style="font-size:0.82rem; color:var(--text-muted);">Dimensions disagree or contradictory signals appear during expansion, equilibrium, or contraction.</p>
+            </div>
+
+            <div class="card" style="margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span class="badge b-purple">% = DISTORTION</span>
+                <label style="font-size:0.8rem; cursor:pointer;">
+                  <input type="checkbox" id="pol-overlay-pct" /> Overlay %
+                </label>
+              </div>
+              <p style="font-size:0.82rem; color:var(--text-muted);">Information is unreliable due to noise, unverified assumptions, or emotional interference.</p>
+            </div>
+
+            <div class="card" id="pol-readout"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         TAB 4: 12 DIMENSIONS
+         ====================================================================== -->
+    <section id="tab-dimensions" class="tab-panel" role="tabpanel">
+      <div class="panel">
+        <h2 class="sec-title">The 12 Cognitive Dimensions</h2>
+        <p class="sec-sub">How your thinking processes and organizes decisions across 12 distinct layers.</p>
+        <div class="grid-4" id="dim-cards-container"></div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         TAB 5: DIMENSION × POLARITY MATRIX & 8 CHECK BITS ECC DECISION AUDITOR
+         (DEFAULT ACTIVE TAB)
+         ====================================================================== -->
+    <section id="tab-matrix" class="tab-panel active" role="tabpanel">
+      <div class="panel">
+        <!-- 1. Proposed Decision Input & 1-Click Presets -->
+        <div class="decision-header-bar">
+          <div>
+            <h2 class="sec-title">Proposed Decision &amp; 8-Check-Bit Parity Auditor</h2>
+            <p class="sec-sub" style="margin-bottom:0;">
+              Encode an atomic decision across <strong>12 Dimensions × 7 Polarities (84 cells)</strong>. Eight Hsiao parity rules (<strong>C0–C7</strong>) scan every row to verify alignment, pinpoint single-dimension <strong>X Conflict</strong>, or halt on systemic <strong>% Distortion</strong>.
+            </p>
+          </div>
+          <div class="preset-group" role="group" aria-label="Decision Presets">
+            <button type="button" class="preset-btn active-preset" id="preset-a">
+              <span style="color:var(--emerald);">●</span> Confident Pass (00000000 OK)
+            </button>
+            <button type="button" class="preset-btn" id="preset-b">
+              <span style="color:var(--amber);">▲</span> Single Conflict (X Catch)
+            </button>
+            <button type="button" class="preset-btn" id="preset-c">
+              <span style="color:var(--rose);">■</span> Systemic Distortion (% Halt)
+            </button>
+          </div>
+        </div>
+
+        <div class="decision-form-grid">
+          <div class="field-box">
+            <label for="inp-decision">Proposed Decision (Atomic Action)</label>
+            <input type="text" id="inp-decision" />
+          </div>
+          <div class="field-box">
+            <label for="inp-polarity">Polarity Intent (1D/6D)</label>
+            <select id="inp-polarity">
+              <option value="0">+3 Maximum Expansion</option>
+              <option value="1">+2 Strong Expansion</option>
+              <option value="2">+1 Moderate Expansion</option>
+              <option value="3">0 Equilibrium</option>
+              <option value="4">−1 Moderate Contraction</option>
+              <option value="5" selected>−2 Strong Contraction</option>
+              <option value="6">−3 Maximum Contraction</option>
+            </select>
+          </div>
+          <div class="field-box">
+            <label for="inp-facts">Baseline Facts (3D Reality)</label>
+            <input type="text" id="inp-facts" />
+          </div>
+        </div>
+
+        <div class="decision-form-grid-sub" style="margin-bottom:16px;">
+          <div class="field-box">
+            <label for="inp-horizon">Time Horizon (4D Temporal)</label>
+            <input type="text" id="inp-horizon" />
+          </div>
+          <div class="field-box">
+            <label for="inp-limits">Hard Limits (11D Constraints)</label>
+            <input type="text" id="inp-limits" />
+          </div>
+          <div class="field-box">
+            <label for="inp-systems">Connected Systems (5D / 8D)</label>
+            <input type="text" id="inp-systems" />
+          </div>
+        </div>
+
+        <!-- 2. Audit Controls Bar -->
+        <div class="audit-bar">
+          <button type="button" class="ctrl-btn primary" id="btn-audit-play">Audit Decision (Play)</button>
+          <button type="button" class="ctrl-btn" id="btn-audit-step">Step</button>
+          <button type="button" class="ctrl-btn warn" id="btn-inject-x">Inject Conflict (X)</button>
+          <button type="button" class="ctrl-btn danger" id="btn-inject-pct">Inject Distortion (%)</button>
+          <button type="button" class="ctrl-btn repair" id="btn-repair-x">Repair (X)</button>
+          <button type="button" class="ctrl-btn" id="btn-reset-matrix">Reset</button>
+
+          <div class="audit-right">
+            <label for="sel-speed" style="font-size:0.75rem; color:var(--text-muted);" class="mono">Speed</label>
+            <select id="sel-speed" class="speed-select">
+              <option value="45" selected>Demo (45ms)</option>
+              <option value="15">Fast (15ms)</option>
+              <option value="0">Instant (0ms)</option>
+            </select>
+            <span class="mode-badge" id="audit-mode-badge">IDLE</span>
+          </div>
+        </div>
+
+        <!-- 3. Main Split Board: 12×7 Matrix on Left + 8 Check Bits Sidebar on Right -->
+        <div class="ecc-board">
+          <div class="matrix-wrap">
+            <div class="matrix-grid">
+              <div class="matrix-col-headers">
+                <div class="col-hdr" style="text-align:left; padding-left:8px; color:var(--text-muted);">DIMENSION</div>
+                <div class="col-hdr pos">+3 Max Exp</div>
+                <div class="col-hdr pos">+2 Strong Exp</div>
+                <div class="col-hdr pos">+1 Mod Exp</div>
+                <div class="col-hdr zero">0 Equilibrium</div>
+                <div class="col-hdr neg">−1 Mod Con</div>
+                <div class="col-hdr neg">−2 Strong Con</div>
+                <div class="col-hdr neg">−3 Max Con</div>
+              </div>
+              <div id="ecc-rows-container"></div>
+            </div>
+          </div>
+
+          <!-- Right Panel: 8 Check Bits Sidebar (C0 .. C7) -->
+          <aside class="chk-sidebar" id="chk-sidebar" aria-label="8 Check Bits Parity Panel">
+            <div class="chk-header">
+              <div class="chk-title">8 CHECK BITS</div>
+              <div class="chk-sub">Cross-Dimensional Parity</div>
+            </div>
+            <div id="chk-bits-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-top:4px; line-height:1.35;">
+              Click <strong>C0–C7</strong> to highlight watched cells across 1D–12D. Click value pill to flip check bit directly.
+            </div>
+          </aside>
+        </div>
+
+        <!-- 4. Live Diagnostic Status Banner -->
+        <div class="diag-banner ok" id="diag-banner" role="status" aria-live="polite">
+          <div class="diag-top">
+            <span class="diag-headline" id="diag-headline">OK — ALL DIMENSIONS ALIGNED</span>
+            <span class="diag-syndrome" id="diag-syndrome">SYNDROME: 00000000</span>
+          </div>
+          <div class="diag-desc" id="diag-desc">
+            Every cross-dimensional parity rule passes. Polarities across 1D–12D are internally consistent.
+          </div>
+        </div>
+
+        <!-- 5. Four Compact Coverage & Confidence Metric Cards -->
+        <div class="metrics-row">
+          <div class="metric-card">
+            <small>Syndrome State</small>
+            <b id="met-syndrome" style="color:var(--emerald);">00000000 (CLEAN)</b>
+          </div>
+
+          <div class="metric-card">
+            <small>Dimensions Touched</small>
+            <b id="met-touched">12 / 12</b>
+            <div class="seg-bar" id="met-seg-bar"></div>
+          </div>
+
+          <div class="metric-card">
+            <small>Parity Checks Evaluated</small>
+            <b id="met-ops">0 OPS</b>
+          </div>
+
+          <div class="metric-card">
+            <small>Decision Confidence</small>
+            <b id="met-confidence" style="color:var(--emerald);">HIGH — READY TO ACT</b>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         TAB 6: WORKFLOW & LOOP
+         ====================================================================== -->
+    <section id="tab-workflow" class="tab-panel" role="tabpanel">
+      <div class="panel">
+        <h2 class="sec-title">Recursive Thinking Workflow &amp; Interruption Signals</h2>
+        <p class="sec-sub">Simulate how <strong>X</strong> (Conflict) and <strong>%</strong> (Distortion) interrupt forward execution and route back to <strong>0 Observation</strong>.</p>
+
+        <div class="grid-2">
+          <div id="wf-steps">
+            <div class="flow-card" data-wf="1">
+              <div><span class="badge b-emerald">+ DYNAMIC THINKING</span><div style="font-weight:700; margin-top:4px;">1. Explore Possibilities</div></div>
+              <span class="mono" style="color:var(--emerald);">+</span>
+            </div>
+            <div class="flow-card" id="wf-obs" data-wf="2">
+              <div><span class="badge b-amber">0 OBSERVATION</span><div style="font-weight:700; margin-top:4px;">2. Understand Reality (Audit Anchor)</div></div>
+              <span class="mono" style="color:var(--amber);">0</span>
+            </div>
+            <div class="flow-card" data-wf="3">
+              <div><span class="badge b-rose">− COMPLEMENTARY THINKING</span><div style="font-weight:700; margin-top:4px;">3. Analyze &amp; Deconstruct</div></div>
+              <span class="mono" style="color:var(--rose);">−</span>
+            </div>
+            <div class="flow-card" data-wf="4">
+              <div><span class="badge b-amber">0 REEVALUATION</span><div style="font-weight:700; margin-top:4px;">4. Check Alignment</div></div>
+              <span class="mono" style="color:var(--amber);">0</span>
+            </div>
+            <div class="flow-card" data-wf="5">
+              <div><span class="badge b-emerald">+ DEVELOPMENT</span><div style="font-weight:700; margin-top:4px;">5. Build &amp; Execute</div></div>
+              <span class="mono" style="color:var(--emerald);">+</span>
+            </div>
+            <div class="flow-card" data-wf="6">
+              <div><span class="badge b-cyan">RECURSIVE REVIEW</span><div style="font-weight:700; margin-top:4px;">6. Review → Repeat</div></div>
+              <span class="mono" style="color:var(--cyan);">↻</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 style="font-size:1rem; font-weight:700; margin-bottom:8px;">Circuit-Breaker Interrupt Simulation</h3>
+            <p style="font-size:0.83rem; color:var(--text-muted); margin-bottom:14px;">
+              When <strong>X</strong> or <strong>%</strong> appears during any phase, forward action halts immediately and returns to Step 2 (0 Observation).
+            </p>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+              <button type="button" class="ctrl-btn warn" id="wf-btn-x">Trigger X (Conflict Interrupt)</button>
+              <button type="button" class="ctrl-btn danger" id="wf-btn-pct">Trigger % (Distortion Interrupt)</button>
+              <button type="button" class="ctrl-btn" id="wf-btn-reset">Resume Normal Pipeline Flow</button>
+            </div>
+            <div id="wf-status" style="padding:12px; border-radius:var(--radius-sm); background-color:var(--bg-panel); border:1px solid var(--border); font-size:0.82rem; color:var(--text-muted);">
+              Pipeline flowing normally across + / 0 / − phases.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. DATA DEFINITIONS — 12 DIMENSIONS & 7 POLARITY STATES
+       ========================================================================== */
+    const POLARITY_COLS = [
+      { key: "p3", code: "+3", label: "+3 Max Exp",    group: "pos",  desc: "Maximum Expansion" },
+      { key: "p2", code: "+2", label: "+2 Strong Exp", group: "pos",  desc: "Strong Expansion" },
+      { key: "p1", code: "+1", label: "+1 Mod Exp",    group: "pos",  desc: "Moderate Expansion" },
+      { key: "z0", code: "0",  label: "0 Equilibrium", group: "zero", desc: "Equilibrium / Observation" },
+      { key: "n1", code: "−1", label: "−1 Mod Con",    group: "neg",  desc: "Moderate Contraction" },
+      { key: "n2", code: "−2", label: "−2 Strong Con", group: "neg",  desc: "Strong Contraction" },
+      { key: "n3", code: "−3", label: "−3 Max Con",    group: "neg",  desc: "Maximum Contraction" }
+    ];
+
+    const DIMENSIONS = [
+      { id: "1D",  name: "Intention",     short: "Establish what you want",
+        tips: ["Grand overarching vision", "Explore target outcomes", "Sharpen goal direction", "Clarify core objective", "Question goal necessity", "Separate sub-goals", "Strip non-essential desires"] },
+      { id: "2D",  name: "Ideation",      short: "Generate possibilities",
+        tips: ["Breakthrough concepts", "Divergent brainstorming", "Iterate promising ideas", "Inventory existing ideas", "Stress-test for flaws", "Decompose mechanisms", "Discard weak concepts"] },
+      { id: "3D",  name: "Reality",       short: "Examine what exists",
+        tips: ["Envision transformed state", "Spot untapped leverage", "Strengthen baseline", "Verify raw facts", "Expose bottlenecks", "Audit dependencies", "Eliminate dead weight"] },
+      { id: "4D",  name: "Temporal",      short: "Past, present & future",
+        tips: ["Multi-year trajectory", "Alternate future timelines", "Sequence next milestones", "Map current timeline", "Spot timing risks", "Break into phases", "Cut low-value delays"] },
+      { id: "5D",  name: "Systems",       short: "Organize repeatable structures",
+        tips: ["Self-scaling ecosystem", "Modular workflows", "Optimize throughput", "Map current flow", "Detect failure points", "Decompose monoliths", "Prune redundant steps"] },
+      { id: "6D",  name: "Selection",     short: "Compare and choose",
+        tips: ["High-leverage asymmetric bet", "Synthesize hybrid options", "Commit to viable path", "Weigh neutral trade-offs", "Spot downside exposure", "Isolate decision variables", "Eliminate inferior choices"] },
+      { id: "7D",  name: "Purpose",       short: "Establish why it matters",
+        tips: ["Transcendent legacy impact", "Discover deeper meaning", "Reinforce value alignment", "State why it matters", "Challenge shallow motives", "Distinguish core value", "Drop low-purpose tasks"] },
+      { id: "8D",  name: "Collective",    short: "System relationships",
+        tips: ["Network effects", "Bridge external domains", "Strengthen interfaces", "Observe system links", "Identify misalignment", "Map boundary interfaces", "Decouple toxic links"] },
+      { id: "9D",  name: "Patterns",      short: "Recurring structures",
+        tips: ["Universal principles", "Transfer winning patterns", "Codify templates", "Track recurring signals", "Detect failure loops", "Separate signal & noise", "Break habitual loops"] },
+      { id: "10D", name: "Possibilities", short: "Alternative outcomes",
+        tips: ["Radical breakthroughs", "Parallel what-if branches", "Low-cost optionality", "Catalog reachable states", "Evaluate tail risks", "Map probability trees", "Close distraction branches"] },
+      { id: "11D", name: "Constraints",   short: "Rules and limitations",
+        tips: ["Creative catalyst limits", "Reframe boundaries", "Operate within guardrails", "Define hard laws & caps", "Test real vs assumed limits", "Separate hard vs soft rules", "Remove artificial limits"] },
+      { id: "12D", name: "Observation",   short: "Monitor own thinking",
+        tips: ["Elevated meta-clarity", "Consciously shift modes", "Steady self-regulation", "Witness neutrally", "Catch over-expansion", "Trace root assumptions", "Reset to 0 baseline"] }
+    ];
+
+    /* ==========================================================================
+       2. HSIAO-INSPIRED (92, 84) PARITY CHECK & SYNDROME ENGINE
+       - Indices 0..7   => Check Bits C0..C7 (each has column mask 1 << j)
+       - Indices 8..91  => 84 Matrix Cells (12 rows × 7 cols; cellIdx = r * 7 + c)
+       - Every cell gets a unique odd-weight 8-bit mask (56 weight-3 + 28 weight-5)
+         so EVERY single-cell conflict (X) produces a unique odd-weight syndrome!
+       ========================================================================== */
+    const NUM_ROWS = 12;
+    const NUM_COLS = 7;
+    const NUM_CELLS = NUM_ROWS * NUM_COLS; // 84
+    const CELL_IDS = Array.from({ length: NUM_CELLS }, (_, k) => 8 + k);
+
+    const COL_MASKS = [];
+    (function buildHsiaoMasks() {
+      const w3 = [];
+      for (let a = 0; a < 8; a++) {
+        for (let b = a + 1; b < 8; b++) {
+          for (let c = b + 1; c < 8; c++) {
+            w3.push((1 << a) | (1 << b) | (1 << c));
+          }
+        }
+      } // 56 unique weight-3 masks
+
+      const w5 = [];
+      for (let a = 0; a < 8; a++) {
+        for (let b = a + 1; b < 8; b++) {
+          for (let c = b + 1; c < 8; c++) {
+            const m = 0xFF ^ ((1 << a) | (1 << b) | (1 << c));
+            w5.push(m);
+          }
+        }
+      } // 56 unique weight-5 masks
+
+      COL_MASKS.push(...w3, ...w5.slice(0, NUM_CELLS - w3.length)); // 84 unique odd-weight masks
+    })();
+
+    const colOf = (id) => (id < 8 ? (1 << id) : COL_MASKS[id - 8]);
+    const SYNDROME_LOOKUP = new Map();
+    for (let id = 0; id < 8 + NUM_CELLS; id++) {
+      SYNDROME_LOOKUP.set(colOf(id), id);
+    }
+
+    const popcount = (n) => {
+      let c = 0;
+      while (n) { c += n & 1; n >>= 1; }
+      return c;
+    };
+
+    const watchedByCheck = (ci) => CELL_IDS.filter((id) => (COL_MASKS[id - 8] >> ci) & 1);
+
+    function formatIdLocation(id) {
+      if (id < 8) return `Check Bit C${id} (Meta-Rule)`;
+      const cellIdx = id - 8;
+      const r = Math.floor(cellIdx / NUM_COLS);
+      const c = cellIdx % NUM_COLS;
+      return `${DIMENSIONS[r].id} ${DIMENSIONS[r].name} × ${POLARITY_COLS[c].label}`;
+    }
+
+    /* ==========================================================================
+       3. DECISION PRESETS (A: CONFIDENT PASS, B: SINGLE X, C: DISTORTION %)
+       ========================================================================== */
+    const PRESETS = {
+      A: {
+        decision: "Freeze new features for 14 days and refactor core routing into 1 reusable service",
+        polarityCol: 5, // -2 Strong Contraction
+        facts: "3 duplicate handlers causing 2 confirmed sync bugs; zero external deadlines for 14 days",
+        horizon: "14-day cleanup window; unblocks downstream API expansion (10D)",
+        limits: "Zero downtime on existing endpoints; max 15 hours total effort",
+        systems: "Local proxy relay & dashboard UI modules",
+        // Clean baseline polarity index (0..6) for each of the 12 dimensions
+        baseCols: [5, 5, 3, 3, 5, 5, 2, 3, 4, 2, 4, 3],
+        injectX: [],
+        injectPct: []
+      },
+      B: {
+        decision: "Launch 3 live external data feeds simultaneously this weekend",
+        polarityCol: 0, // +3 Max Expansion
+        facts: "Current parser handles 1 feed; 2 feeds untested under burst load",
+        horizon: "48-hour weekend sprint",
+        limits: "4 hours available; zero budget for rate-limit overages (-3 strict cap)",
+        systems: "Live ingestion pipeline & storage queue",
+        baseCols: [0, 0, 3, 4, 1, 0, 2, 1, 3, 0, 6, 3],
+        // Single-cell X conflict at 11D Constraints (+3 expansion colliding with -3 hard cap)
+        injectX: [{ row: 10, col: 0 }],
+        injectPct: []
+      },
+      C: {
+        decision: "Scale all 5 experimental modules immediately based on unverified intuition",
+        polarityCol: 0, // +3 Max Expansion
+        facts: "UNVERIFIED ASSUMPTION — metrics missing; conflicting latency reports",
+        horizon: "Immediate rollout vs unscheduled architectural overhaul",
+        limits: "Undefined resource cap; competing stakeholder deadlines",
+        systems: "Cross-service mesh with unmapped dependencies",
+        baseCols: [0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 2, 2],
+        injectX: [],
+        // Multi-cell % distortion across 3D Reality, 4D Temporal, and 12D Observation
+        injectPct: [
+          { row: 2, col: 0 },
+          { row: 3, col: 6 },
+          { row: 11, col: 0 }
+        ]
+      }
+    };
+
+    /* ==========================================================================
+       4. AUDIT ENGINE STATE & CORE FUNCTIONS
+       ========================================================================== */
+    let origBits = new Array(8 + NUM_CELLS).fill(0);
+    let currBits = new Array(8 + NUM_CELLS).fill(0);
+    let flippedIds = [];
+    let selectedCheck = -1;
+    let fixedIds = [];
+
+    // Animation / Sweep State
+    const SCAN = {
+      active: false,
+      row: -1,
+      curId: -1,
+      trail: [],
+      checkVals: new Array(8).fill(null),
+      touchedRows: 12,
+      opsCount: 0
+    };
+
+    let runToken = 0;
+    let isRunning = false;
+    let stepRequested = false;
+
+    function computeExpectedCheckBits(bitArray) {
+      const checks = new Array(8).fill(0);
+      for (let k = 0; k < NUM_CELLS; k++) {
+        if (bitArray[8 + k]) {
+          for (let j = 0; j < 8; j++) {
+            if ((COL_MASKS[k] >> j) & 1) checks[j] ^= 1;
+          }
+        }
+      }
+      return checks;
+    }
+
+    function diagnoseSyndrome() {
+      let syn = 0;
+      for (let id = 0; id < 8 + NUM_CELLS; id++) {
+        if (currBits[id]) syn ^= colOf(id);
+      }
+      const weight = popcount(syn);
+      if (syn === 0 && flippedIds.length === 0) {
+        return { syn, kind: "ok" };
+      }
+      if (syn === 0 && flippedIds.length > 0) {
+        return { syn, kind: "masked" };
+      }
+      if (weight % 2 === 1 && SYNDROME_LOOKUP.has(syn)) {
+        return { syn, kind: "single", id: SYNDROME_LOOKUP.get(syn) };
+      }
+      return { syn, kind: "multi" };
+    }
+
+    function loadPreset(presetKey, autoRun = false) {
+      runToken++;
+      isRunning = false;
+      const p = PRESETS[presetKey];
+      if (!p) return;
+
+      document.querySelectorAll(".preset-btn").forEach((b) => b.classList.remove("active-preset"));
+      const activeBtn = document.getElementById("preset-" + presetKey.toLowerCase());
+      if (activeBtn) activeBtn.classList.add("active-preset");
+
+      document.getElementById("inp-decision").value = p.decision;
+      document.getElementById("inp-polarity").value = String(p.polarityCol);
+      document.getElementById("inp-facts").value = p.facts;
+      document.getElementById("inp-horizon").value = p.horizon;
+      document.getElementById("inp-limits").value = p.limits;
+      document.getElementById("inp-systems").value = p.systems;
+
+      const clean = new Array(8 + NUM_CELLS).fill(0);
+      p.baseCols.forEach((colIdx, rowIdx) => {
+        const cellId = 8 + rowIdx * NUM_COLS + colIdx;
+        clean[cellId] = 1;
+      });
+      const checks = computeExpectedCheckBits(clean);
+      for (let j = 0; j < 8; j++) clean[j] = checks[j];
+
+      origBits = clean.slice();
+      currBits = clean.slice();
+      flippedIds = [];
+      fixedIds = [];
+      selectedCheck = -1;
+
+      // Apply preset conflicts/distortions if defined
+      const injected = [...p.injectX, ...p.injectPct];
+      injected.forEach(({ row, col }) => {
+        const id = 8 + row * NUM_COLS + col;
+        currBits[id] ^= 1;
+        flippedIds.push(id);
+      });
+
+      SCAN.active = false;
+      SCAN.row = -1;
+      SCAN.curId = -1;
+      SCAN.trail = [];
+      SCAN.touchedRows = 12;
+      SCAN.opsCount = 84;
+      setModeBadge("IDLE");
+      renderMatrixBoard();
+
+      if (autoRun) {
+        runAuditSweep(false);
+      }
+    }
+
+    function setModeBadge(text, variant = "") {
+      const badge = document.getElementById("audit-mode-badge");
+      if (!badge) return;
+      badge.textContent = text;
+      badge.className = "mode-badge" + (variant ? " " + variant : "");
+    }
+
+    /* ==========================================================================
+       5. RENDER MATRIX BOARD, 8 CHECK BITS PANEL, & DIAGNOSTICS
+       ========================================================================== */
+    function renderMatrixBoard() {
+      const rowsContainer = document.getElementById("ecc-rows-container");
+      const chkList = document.getElementById("chk-bits-list");
+      if (!rowsContainer || !chkList) return;
+
+      const diag = diagnoseSyndrome();
+      const watchedSet = selectedCheck >= 0 ? new Set(watchedByCheck(selectedCheck)) : new Set();
+      const fixedSet = new Set(fixedIds);
+
+      // Render 12 Dimension Rows × 7 Polarity Cells
+      rowsContainer.innerHTML = DIMENSIONS.map((dim, rIdx) => {
+        const isCurrentRow = SCAN.row === rIdx;
+        const cellsHtml = POLARITY_COLS.map((col, cIdx) => {
+          const id = 8 + rIdx * NUM_COLS + cIdx;
+          const val = currBits[id];
+          const isFlipped = flippedIds.includes(id);
+
+          let cls = `m-cell ${col.group}`;
+          if (val === 1) cls += " on";
+          if (watchedSet.has(id)) cls += " watch";
+          if (SCAN.curId === id) cls += " cur";
+          else if (SCAN.trail[SCAN.trail.length - 2] === id) cls += " t1";
+          else if (SCAN.trail[SCAN.trail.length - 3] === id) cls += " t2";
+
+          if (isFlipped) {
+            cls += diag.kind === "single" ? " bad-x" : " bad-pct";
+          }
+          if (fixedSet.has(id)) cls += " fix";
+
+          const title = `${dim.id} ${dim.name} × ${col.label}: ${dim.tips[cIdx]} (Click to toggle)`;
+          return `<button type="button" class="${cls}" data-id="${id}" title="${title}">${val}</button>`;
+        }).join("");
+
+        return `
+          <div class="dim-row ${isCurrentRow ? "rowcur" : ""}">
+            <div class="dim-label">
+              <span class="dim-name">${dim.name}</span>
+              <span class="dim-id">${dim.id}</span>
+            </div>
+            ${cellsHtml}
+          </div>
+        `;
+      }).join("");
+
+      // Compute live check parity values for display
+      const liveChecks = computeExpectedCheckBits(currBits);
+
+      chkList.innerHTML = Array.from({ length: 8 }, (_, ci) => {
+        const wCount = watchedByCheck(ci).length;
+        const isSelected = selectedCheck === ci;
+        const isCheckFlipped = flippedIds.includes(ci);
+        const isFixed = fixedSet.has(ci);
+
+        // During active WRITE scan, show SCAN.checkVals[ci] (or '·' if untouched yet)
+        const displayVal = SCAN.active
+          ? (SCAN.checkVals[ci] === null ? "·" : SCAN.checkVals[ci])
+          : currBits[ci];
+
+        // A check bit fails when stored check bit currBits[ci] != recomputed liveChecks[ci]
+        const mismatch = !SCAN.active && (currBits[ci] !== liveChecks[ci]);
+
+        let btnCls = "chk-btn";
+        if (isSelected) btnCls += " sel";
+        if (mismatch || isCheckFlipped) btnCls += " bad";
+        if (isFixed) btnCls += " fix";
+
+        return `
+          <button type="button" class="${btnCls}" data-check="${ci}" title="Click to highlight watched cells for C${ci}">
+            <span><strong>C${ci}</strong> <span class="chk-weight">w${wCount}</span></span>
+            <span class="chk-meta">
+              <span class="cv-pill ${mismatch ? "mismatch" : ""}" data-flipcheck="${ci}" title="Click value to flip check bit C${ci}">${displayVal}</span>
+            </span>
+          </button>
+        `;
+      }).join("");
+
+      // Update Diagnostic Banner & 4 Metric Cards
+      const banner = document.getElementById("diag-banner");
+      const headline = document.getElementById("diag-headline");
+      const synBadge = document.getElementById("diag-syndrome");
+      const desc = document.getElementById("diag-desc");
+
+      const metSyn = document.getElementById("met-syndrome");
+      const metTouched = document.getElementById("met-touched");
+      const metSeg = document.getElementById("met-seg-bar");
+      const metOps = document.getElementById("met-ops");
+      const metConf = document.getElementById("met-confidence");
+
+      const synBin = diag.syn.toString(2).padStart(8, "0");
+      synBadge.textContent = `SYNDROME: ${synBin}`;
+      metTouched.textContent = `${SCAN.touchedRows} / 12`;
+      metOps.textContent = `${SCAN.opsCount.toLocaleString()} OPS`;
+      metSeg.innerHTML = Array.from({ length: 12 }, (_, i) => `<i class="${i < SCAN.touchedRows ? "lit" : ""}"></i>`).join("");
+
+      if (diag.kind === "ok") {
+        banner.className = "diag-banner ok";
+        headline.textContent = selectedCheck >= 0
+          ? `INSPECTING C${selectedCheck} — WATCHING ${watchedByCheck(selectedCheck).length} CROSS-DIMENSIONAL CELLS`
+          : "OK — ALL DIMENSIONS ALIGNED";
+        headline.style.color = selectedCheck >= 0 ? "var(--cyan)" : "var(--emerald)";
+        desc.textContent = selectedCheck >= 0
+          ? `Check rule C${selectedCheck} links ${watchedByCheck(selectedCheck).length} cells across multiple dimensions. All parity checks currently balance.`
+          : "Zero syndrome (00000000). Every dimension's polarity agrees with your hard constraints (11D) and baseline facts (3D).";
+        metSyn.textContent = `${synBin} (CLEAN)`;
+        metSyn.style.color = "var(--emerald)";
+        metConf.textContent = "HIGH — READY TO ACT";
+        metConf.style.color = "var(--emerald)";
+      } else if (diag.kind === "single") {
+        banner.className = "diag-banner warn";
+        headline.textContent = `X — LOCALIZED CONFLICT AT ${formatIdLocation(diag.id)}`;
+        headline.style.color = "var(--amber)";
+        desc.textContent = `Odd-weight syndrome ${synBin} matches a unique fingerprint in the check matrix. Click "Repair (X)" to resolve this single-dimension conflict automatically.`;
+        metSyn.textContent = `${synBin} (X CONFLICT)`;
+        metSyn.style.color = "var(--amber)";
+        metConf.textContent = "REPAIRABLE — FIX X";
+        metConf.style.color = "var(--amber)";
+      } else {
+        banner.className = "diag-banner err";
+        headline.textContent = "% — SYSTEMIC DISTORTION DETECTED (HALT & VERIFY FACTS)";
+        headline.style.color = "var(--rose)";
+        desc.textContent = diag.kind === "masked"
+          ? "Multiple flips cancelled out into a false zero syndrome. Unverified assumptions or noise are masking real risk—halt and re-verify 3D Reality."
+          : `Multi-cell mismatch (${flippedIds.length} active anomalies, syndrome ${synBin}). Cannot auto-repair without risking wrong assumptions; route back to 0 Observation.`;
+        metSyn.textContent = `${synBin} (% DISTORTION)`;
+        metSyn.style.color = "var(--rose)";
+        metConf.textContent = "HALTED — VERIFY 3D";
+        metConf.style.color = "var(--rose)";
+      }
+
+      fixedIds = [];
+    }
+
+    /* ==========================================================================
+       6. ROW-BY-ROW AUDIT SWEEP ANIMATION
+       ========================================================================== */
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    async function runAuditSweep(singleStep = false) {
+      if (isRunning && !singleStep) return;
+      const token = ++runToken;
+      isRunning = true;
+      selectedCheck = -1;
+
+      const delay = parseInt(document.getElementById("sel-speed").value, 10);
+      SCAN.active = true;
+      SCAN.trail = [];
+      SCAN.checkVals = new Array(8).fill(null);
+      SCAN.touchedRows = 0;
+      SCAN.opsCount = 0;
+
+      setModeBadge("WRITE");
+
+      // Phase 1: Sweep down all 12 rows (84 cells) computing running parity
+      const running = new Array(8).fill(0);
+      for (let k = 0; k < NUM_CELLS; k++) {
+        if (token !== runToken) return;
+        const r = Math.floor(k / NUM_COLS);
+        const id = 8 + k;
+        if (currBits[id]) {
+          for (let j = 0; j < 8; j++) {
+            if ((COL_MASKS[k] >> j) & 1) {
+              running[j] ^= 1;
+              SCAN.checkVals[j] = running[j];
+            }
+          }
+        }
+        SCAN.row = r;
+        SCAN.curId = id;
+        SCAN.touchedRows = r + 1;
+        SCAN.opsCount += 2;
+        SCAN.trail.push(id);
+        if (SCAN.trail.length > 3) SCAN.trail.shift();
+
+        if (delay > 0) {
+          renderMatrixBoard();
+          await sleep(delay);
+        }
+      }
+
+      if (token !== runToken) return;
+
+      // Phase 2: READ & Cross-Dimensional Check Verification
+      setModeBadge("READ");
+      SCAN.curId = -1;
+      SCAN.row = -1;
+      SCAN.trail = [];
+      SCAN.opsCount += 84 + 8;
+      SCAN.active = false;
+
+      const diag = diagnoseSyndrome();
+      if (diag.kind === "ok") {
+        setModeBadge("COMPLETE", "done");
+      } else if (diag.kind === "single") {
+        setModeBadge("X CONFLICT", "halt");
+      } else {
+        setModeBadge("HALTED (%)", "halt");
+      }
+
+      isRunning = false;
+      renderMatrixBoard();
+    }
+
+    /* ==========================================================================
+       7. EVENT BINDINGS FOR MATRIX, CHECK BITS, PRESETS & CONTROLS
+       ========================================================================== */
+    function initMatrixInteractions() {
+      const rowsContainer = document.getElementById("ecc-rows-container");
+      const chkSidebar = document.getElementById("chk-sidebar");
+
+      // Toggle individual cells in 12×7 grid
+      rowsContainer.addEventListener("click", (e) => {
+        const cellBtn = e.target.closest(".m-cell");
+        if (!cellBtn) return;
+        const id = parseInt(cellBtn.getAttribute("data-id"), 10);
+        currBits[id] ^= 1;
+        const idx = flippedIds.indexOf(id);
+        if (idx >= 0) flippedIds.splice(idx, 1);
+        else flippedIds.push(id);
+        renderMatrixBoard();
+      });
+
+      // Select C0..C7 to highlight watched cells, or click .cv-pill to flip check bit directly
+      chkSidebar.addEventListener("click", (e) => {
+        const flipPill = e.target.closest("[data-flipcheck]");
+        if (flipPill) {
+          const ci = parseInt(flipPill.getAttribute("data-flipcheck"), 10);
+          currBits[ci] ^= 1;
+          const idx = flippedIds.indexOf(ci);
+          if (idx >= 0) flippedIds.splice(idx, 1);
+          else flippedIds.push(ci);
+          renderMatrixBoard();
+          return;
+        }
+        const chkBtn = e.target.closest("[data-check]");
+        if (chkBtn) {
+          const ci = parseInt(chkBtn.getAttribute("data-check"), 10);
+          selectedCheck = selectedCheck === ci ? -1 : ci;
+          renderMatrixBoard();
+        }
+      });
+
+      // Presets A, B, C
+      document.getElementById("preset-a").addEventListener("click", () => loadPreset("A", false));
+      document.getElementById("preset-b").addEventListener("click", () => loadPreset("B", false));
+      document.getElementById("preset-c").addEventListener("click", () => loadPreset("C", false));
+
+      // Audit Buttons
+      document.getElementById("btn-audit-play").addEventListener("click", () => runAuditSweep(false));
+
+      document.getElementById("btn-audit-step").addEventListener("click", () => {
+        // Advance one dimension row highlight at a time
+        SCAN.row = (SCAN.row + 1) % NUM_ROWS;
+        SCAN.touchedRows = SCAN.row + 1;
+        SCAN.opsCount += 14;
+        setModeBadge("STEP SCAN");
+        renderMatrixBoard();
+      });
+
+      document.getElementById("btn-inject-x").addEventListener("click", () => {
+        // Reset to clean baseline and flip 1 random cell to create a single-cell X conflict
+        currBits = origBits.slice();
+        flippedIds = [];
+        const randomCell = 8 + Math.floor(Math.random() * NUM_CELLS);
+        currBits[randomCell] ^= 1;
+        flippedIds.push(randomCell);
+        setModeBadge("X CONFLICT", "halt");
+        renderMatrixBoard();
+      });
+
+      document.getElementById("btn-inject-pct").addEventListener("click", () => {
+        // Flip 2 distinct cells to guarantee an even-weight uncorrectable % syndrome
+        currBits = origBits.slice();
+        flippedIds = [];
+        const a = 8 + Math.floor(Math.random() * NUM_CELLS);
+        let b = a;
+        while (b === a) b = 8 + Math.floor(Math.random() * NUM_CELLS);
+        currBits[a] ^= 1;
+        currBits[b] ^= 1;
+        flippedIds.push(a, b);
+        setModeBadge("HALTED (%)", "halt");
+        renderMatrixBoard();
+      });
+
+      document.getElementById("btn-repair-x").addEventListener("click", () => {
+        const diag = diagnoseSyndrome();
+        if (diag.kind !== "single") {
+          renderMatrixBoard();
+          return;
+        }
+        currBits[diag.id] ^= 1;
+        fixedIds = [diag.id];
+        const idx = flippedIds.indexOf(diag.id);
+        if (idx >= 0) flippedIds.splice(idx, 1);
+        else flippedIds.push(diag.id);
+        setModeBadge("REPAIRED", "done");
+        renderMatrixBoard();
+      });
+
+      document.getElementById("btn-reset-matrix").addEventListener("click", () => {
+        runToken++;
+        isRunning = false;
+        currBits = origBits.slice();
+        flippedIds = [];
+        fixedIds = [];
+        selectedCheck = -1;
+        SCAN.active = false;
+        SCAN.row = -1;
+        SCAN.curId = -1;
+        SCAN.trail = [];
+        SCAN.touchedRows = 12;
+        SCAN.opsCount = 0;
+        setModeBadge("IDLE");
+        renderMatrixBoard();
+      });
+
+      // Polarity dropdown updates Row 1D & Row 6D baseline
+      document.getElementById("inp-polarity").addEventListener("change", (e) => {
+        const newCol = parseInt(e.target.value, 10);
+        const clean = new Array(8 + NUM_CELLS).fill(0);
+        for (let r = 0; r < NUM_ROWS; r++) {
+          let activeC = -1;
+          for (let c = 0; c < NUM_COLS; c++) {
+            if (origBits[8 + r * NUM_COLS + c] === 1) { activeC = c; break; }
+          }
+          if (r === 0 || r === 5) activeC = newCol;
+          if (activeC >= 0) clean[8 + r * NUM_COLS + activeC] = 1;
+        }
+        const checks = computeExpectedCheckBits(clean);
+        for (let j = 0; j < 8; j++) clean[j] = checks[j];
+        origBits = clean.slice();
+        currBits = clean.slice();
+        flippedIds = [];
+        renderMatrixBoard();
+      });
+    }
+
+    /* ==========================================================================
+       8. OTHER TABS INITIALIZATION (TABS 1, 2, 3, 4, 6)
+       ========================================================================== */
+    function initNavigation() {
+      const btns = document.querySelectorAll(".tab-btn");
+      const panels = document.querySelectorAll(".tab-panel");
+      btns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const target = "tab-" + btn.getAttribute("data-tab");
+          btns.forEach((b) => { b.classList.remove("active"); b.setAttribute("aria-selected", "false"); });
+          panels.forEach((p) => p.classList.remove("active"));
+          btn.classList.add("active");
+          btn.setAttribute("aria-selected", "true");
+          const el = document.getElementById(target);
+          if (el) el.classList.add("active");
+        });
+      });
+    }
+
+    function initOtherTabs() {
+      // Tab 3: Polarity System Explorer
+      const polContainer = document.getElementById("pol-axis-container");
+      const polReadout = document.getElementById("pol-readout");
+      const ovX = document.getElementById("pol-overlay-x");
+      const ovPct = document.getElementById("pol-overlay-pct");
+      let selPolIdx = 1;
+
+      function renderPolTab() {
+        polContainer.innerHTML = POLARITY_COLS.map((p, idx) => {
+          const bCls = p.group === "pos" ? "b-emerald" : (p.group === "zero" ? "b-amber" : "b-rose");
+          return `
+            <button type="button" class="pol-axis-node ${idx === selPolIdx ? "selected" : ""}" data-pidx="${idx}">
+              <span><span class="badge ${bCls}" style="margin-right:8px;">${p.code}</span><strong>${p.desc}</strong></span>
+              <span style="font-size:0.75rem; color:var(--text-muted);">${p.label}</span>
+            </button>
+          `;
+        }).join("");
+
+        polContainer.querySelectorAll(".pol-axis-node").forEach((n) => {
+          n.addEventListener("click", () => {
+            selPolIdx = parseInt(n.getAttribute("data-pidx"), 10);
+            renderPolTab();
+          });
+        });
+
+        const cur = POLARITY_COLS[selPolIdx];
+        const overlays = [];
+        if (ovX.checked) overlays.push("X (Conflict)");
+        if (ovPct.checked) overlays.push("% (Distortion)");
+        polReadout.innerHTML = `
+          <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Active State Signature</div>
+          <div style="font-weight:700; font-size:0.95rem; color:var(--cyan);">${cur.code} ${cur.desc} ${overlays.length ? "+ [" + overlays.join(" & ") + "]" : ""}</div>
+          <p style="font-size:0.82rem; color:var(--text-muted); margin-top:6px;">
+            ${overlays.length ? "Control condition active: pause forward execution and verify alignment at 0 Equilibrium before deciding." : "Clean operating direction along primary polarity axis."}
+          </p>
+        `;
+      }
+      ovX.addEventListener("change", renderPolTab);
+      ovPct.addEventListener("change", renderPolTab);
+      renderPolTab();
+
+      // Tab 4: 12 Dimensions Cards
+      const dimContainer = document.getElementById("dim-cards-container");
+      dimContainer.innerHTML = DIMENSIONS.map((d) => `
+        <div class="card" style="border-top:2px solid var(--cyan);">
+          <div class="mono" style="font-size:0.75rem; font-weight:700; color:var(--cyan); margin-bottom:4px;">${d.id}</div>
+          <h4 style="font-size:0.98rem; font-weight:700; margin-bottom:4px;">${d.name}</h4>
+          <p style="font-size:0.82rem; color:var(--text-muted);">${d.short}.</p>
+        </div>
+      `).join("");
+
+      // Tab 6: Workflow Interrupt Simulator
+      const wfCards = document.querySelectorAll("#wf-steps .flow-card");
+      const wfObs = document.getElementById("wf-obs");
+      const wfStatus = document.getElementById("wf-status");
+
+      function setWfInterrupt(type) {
+        wfCards.forEach((c) => c.classList.remove("dimmed", "target"));
+        if (type === "X" || type === "PCT") {
+          wfCards.forEach((c) => { if (c.id !== "wf-obs") c.classList.add("dimmed"); });
+          wfObs.classList.add("target");
+          wfStatus.style.color = type === "X" ? "var(--amber)" : "var(--rose)";
+          wfStatus.textContent = type === "X"
+            ? "[X] Conflict Interrupt: Execution paused. Routing back to Step 2 (0 Observation) to reconcile contradicting dimensions."
+            : "[%] Distortion Interrupt: Execution paused. Routing back to Step 2 (0 Observation) to strip unverified noise and assumptions.";
+        } else {
+          wfStatus.style.color = "var(--text-muted)";
+          wfStatus.textContent = "Pipeline flowing normally across + / 0 / − phases.";
+        }
+      }
+
+      document.getElementById("wf-btn-x").addEventListener("click", () => setWfInterrupt("X"));
+      document.getElementById("wf-btn-pct").addEventListener("click", () => setWfInterrupt("PCT"));
+      document.getElementById("wf-btn-reset").addEventListener("click", () => setWfInterrupt("CLEAR"));
+    }
+
+    // Initialize everything cleanly
+    document.addEventListener("DOMContentLoaded", () => {
+      initNavigation();
+      initOtherTabs();
+      initMatrixInteractions();
+      loadPreset("A", false);
+    });
+  </script>
+</body>
+</html>
